@@ -1,0 +1,169 @@
+/*
+ * application.gld  ?  Standalone linker script for PIC24FJ128GA310
+ *
+ * Replaces BOTH p24FJ128GA310.gld AND the old application.gld overlay.
+ * Use this as the ONLY linker script:
+ *   - In MPLAB X: Project Properties > XC16 Global Options >
+ *     uncheck "Use default linker script", then set
+ *     Additional linker options to: --script=application.gld
+ *
+ * Memory map
+ *   0x000000 - 0x001FFE  Bootloader (not touched here)
+ *   0x002000 - 0x015FFF  Application flash
+ *   0x000800 - 0x0047FF  Data RAM  (debugger -mreserve blocks land in here)
+ *   0xF80000 - 0xF80007  Configuration words
+ */
+
+OUTPUT_ARCH("24FJ128GA310")
+
+#if __XC16_VERSION__ > 1027
+CRT0_STARTUP(crt0_extended24.o)
+CRT1_STARTUP(crt1_extended24.o)
+#else
+CRT0_STARTUP(crt0_extended.o)
+CRT1_STARTUP(crt1_extended.o)
+#endif
+
+#if __XC16_VERSION__ > 1027
+CRT_STARTMODE(crt_start_mode_normal)
+#endif
+
+OPTIONAL(-lpPIC24Fxxx)
+OPTIONAL(-lfx)
+
+/* ------------------------------------------------------------------ */
+/*  Memory regions                                                      */
+/* ------------------------------------------------------------------ */
+MEMORY
+{
+    /*
+     * Bootloader occupies 0x000000-0x001FFE.
+     * Application starts at 0x002000.
+     * Region named "program" so SECTIONS references work.
+     * PIC24FJ128GA310 has 128KB flash; bootloader takes the first 8KB.
+     * Remaining: 0x15FFE - 0x2000 + 2 = 0x14000 bytes (instruction words).
+     */
+    program  (xr)  : ORIGIN = 0x002000, LENGTH = 0x012FFE
+
+    /*
+     * Data RAM.
+     * ORIGIN = 0x0800 ? this MUST include the -mreserve range
+     * (0x0800-0x084F) so the debug-mode absolute sections have
+     * somewhere to land.  The linker carves those bytes out
+     * automatically; application variables go above 0x0850.
+     * PIC24FJ128GA310 has 16KB RAM: 0x0800-0x47FF.
+     */
+    data     (a!xr): ORIGIN = 0x000800, LENGTH = 0x004000
+
+    /*
+     * Configuration words (PIC24FJ128GA310 uses word-addressed
+     * locations in the upper flash area).
+     */
+    CONFIG4        : ORIGIN = 0x157F8,  LENGTH = 0x2
+    CONFIG3        : ORIGIN = 0x157FA,  LENGTH = 0x2
+    CONFIG2        : ORIGIN = 0x157FC,  LENGTH = 0x2
+    CONFIG1        : ORIGIN = 0x157FE,  LENGTH = 0x2
+}
+
+/* Symbols referenced by MCC / start-up code */
+__CONFIG4 = 0x157F8;
+__CONFIG3 = 0x157FA;
+__CONFIG2 = 0x157FC;
+__CONFIG1 = 0x157FE;
+
+__CODE_BASE   = 0x2000;
+__CODE_LENGTH = 0x14000;
+__IVT_BASE    = 0x4;
+__AIVT_BASE   = 0x104;
+__DATA_BASE   = 0x800;
+__DATA_LENGTH = 0x4000;
+
+/* ------------------------------------------------------------------ */
+/*  Section map                                                         */
+/* ------------------------------------------------------------------ */
+SECTIONS
+{
+    /* -------- Program memory -------- */
+
+    /*
+     * Application reset / entry point.
+     * The bootloader jumps to 0x002000 after verifying the magic flag.
+     */
+    .reset : { *(.reset) } >program
+
+    /*
+     * Interrupt vector tables.
+     * Placed in application flash; the bootloader re-points the CPU
+     * here via the AIVT or a trampoline.
+     */
+    .ivt  : { *(.ivt)  } >program
+    .aivt : { *(.aivt) } >program
+
+    /*
+     * General code.  *(.text) is intentionally omitted here so the
+     * best-fit allocator can place individual .text.* sections around
+     * any PSV sections automatically.
+     */
+    .text :
+    {
+        *(.init);
+        *(.user_init);
+        KEEP (*(.handle));
+        KEEP (*(.isr*));
+        *(.libc) *(.libm) *(.libdsp);   /* keep together, in order */
+        *(.lib*);
+    } >program
+
+    .rodata  : { *(.rodata*) } >program
+    .dconst  : { *(.dconst*) } >program
+    .const   : { *(.const*)  } >program
+
+    /*
+     * .dinit holds initialisation records for non-zero globals.
+     * Without this, initialised globals are zeroed or garbage.
+     */
+    .dinit   : { *(.dinit)   } >program
+
+    usercode : { *(usercode) } >program
+
+    /* -------- Configuration words -------- */
+    __CONFIG4 : { KEEP (*(__CONFIG4.sec*)) } >CONFIG4
+    __CONFIG3 : { KEEP (*(__CONFIG3.sec*)) } >CONFIG3
+    __CONFIG2 : { KEEP (*(__CONFIG2.sec*)) } >CONFIG2
+    __CONFIG1 : { KEEP (*(__CONFIG1.sec*)) } >CONFIG1
+
+    /* -------- Data memory -------- */
+
+    /*
+     * ICD/ICD2 debug exec storage.
+     * Must sit at __DATA_BASE (0x800).  The -mreserve flags injected
+     * by MPLAB X in debug builds create absolute sections that also
+     * land at 0x800; because those are NOLOAD absolute sections inside
+     * the same 'data' region there is no conflict.
+     */
+    .icd __DATA_BASE (NOLOAD) :
+    {
+        . += (DEFINED(__ICD2RAM) ? 0x50 : 0);
+    } >data
+
+    .data    : { *(.data*)  } >data
+    .bss     : { *(.bss*)   } >data
+    .nbss    : { *(.nbss)   } >data
+    .ndata   : { *(.ndata*) } >data
+    .heap    : { *(.heap)   } >data
+    .stack   : { *(.stack)  } >data
+
+    /* -------- Debug information (not loaded) -------- */
+    .comment        0 : { *(.comment) }
+    .debug_info     0 : { *(.debug_info)    *(.gnu.linkonce.wi.*) }
+    .debug_abbrev   0 : { *(.debug_abbrev)  }
+    .debug_line     0 : { *(.debug_line)    }
+    .debug_frame    0 : { *(.debug_frame)   }
+    .debug_str      0 : { *(.debug_str)     }
+    .debug_loc      0 : { *(.debug_loc)     }
+    .debug_macinfo  0 : { *(.debug_macinfo) }
+    .debug_pubnames 0 : { *(.debug_pubnames)}
+    .debug_ranges   0 : { *(.debug_ranges)  }
+    .debug_aranges  0 : { *(.debug_aranges) }
+
+} /* SECTIONS */

@@ -1,0 +1,1 @@
+ -c -mcpu=$(MP_PROCESSOR_OPTION)      -mno-eds-warn  -g -omf=elf -DXPRJ_default=$(CND_CONF)    $(COMPARISON_BUILD)  -mlarge-code -msmall-data -O0 -D__IVT_BASE__=0x2004 -msmart-io=1 -Wall -msfr-warn=off    -mdfp="${DFP_DIR}/xc16"C:\Users\julianb\OneDrive\work drawings\software\EC17_0014_066.X\mcc_generated_files\oc3.c
