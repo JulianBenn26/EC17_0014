@@ -15,7 +15,7 @@
     Compiler : XC16 v2.10
     MPLAB    : MPLAB X v6.25
 
-    Wessex EC17 0014  rev 064
+    Wessex EC17 0014  rev 066
 */
 
 #include <stdint.h>
