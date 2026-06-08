@@ -53,7 +53,11 @@
 #define W_BOT_OR_HI         23
 #define W_LIGHT_T_LO        24
 #define W_LIGHT_T_HI        25
-// Total: 26 words used out of 64 available in one row
+#define W_WARM_WHITE_LO     26
+#define W_WARM_WHITE_HI     27
+
+
+// Total: 28 words used out of 64 available in one row
 
 // ============================================================
 // Factory default values - used when flash is blank
@@ -62,6 +66,7 @@
 #define DEFAULT_GREEN               0x00
 #define DEFAULT_BLUE                0x00
 #define DEFAULT_WHITE               0xFF
+#define DEFAULT_WARM_WHITE  0xFF
 #define DEFAULT_DOOR_SPEED          0x7F
 #define DEFAULT_DOOR_AUTOCLOSE_T    100
 #define DEFAULT_DOOR_AUTOCLOSE      1
@@ -80,6 +85,7 @@ extern uint32_t uart_red;
 extern uint32_t uart_green;
 extern uint32_t uart_blue;
 extern uint32_t uart_white;
+extern uint32_t uart_warm_white;
 extern uint32_t uart_door_speed;
 extern uint32_t uart_door_autoclose_timer;
 extern int      uart_door_autoclose;
@@ -174,6 +180,7 @@ void Config_LoadAll(void) {
     uart_green                = READ32(W_GREEN_LO);
     uart_blue                 = READ32(W_BLUE_LO);
     uart_white                = READ32(W_WHITE_LO);
+    uart_warm_white           = READ32(W_WARM_WHITE_LO);
     uart_door_speed           = READ32(W_DOOR_SPD_LO);
     uart_door_autoclose_timer = READ32(W_AUTOCLOSE_T_LO);
     uart_door_autoclose       = (int)Flash_ReadWord(CONFIG_FLASH_PAGE + (W_AUTOCLOSE    * 2));
@@ -226,6 +233,9 @@ void Config_SaveAll(void) {
     words[W_BOT_OR_HI]       = (uint16_t)(uart_bottom_overrrun      >> 16);
     words[W_LIGHT_T_LO]      = (uint16_t)(lighting_timer            & 0xFFFF);
     words[W_LIGHT_T_HI]      = (uint16_t)(lighting_timer            >> 16);
+    words[W_WARM_WHITE_LO]   = (uint16_t)(uart_warm_white           & 0xFFFF);
+    words[W_WARM_WHITE_HI]   = (uint16_t)(uart_warm_white           >> 16);
+    
 
     Flash_ErasePage();
     Flash_WriteRow(words);
