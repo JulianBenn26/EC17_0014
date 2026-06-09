@@ -15,7 +15,7 @@
     Compiler : XC16 v2.10
     MPLAB    : MPLAB X v6.25
 
-    Wessex EC17 0014  rev 066
+    Wessex EC17 0014  rev 066 - with 5 colour lighting  9/6/26
 */
 
 #include <stdint.h>
@@ -188,6 +188,7 @@ uint32_t uart_red   = 0;
 uint32_t uart_green = 0;
 uint32_t uart_blue  = 0;
 uint32_t uart_white = 0;
+uint32_t uart_warm_white = 0;
 
 volatile int config_dirty          = 0;
 volatile int config_save_countdown = 0;
@@ -450,7 +451,7 @@ void start_door_unlock(void) {
 int lights_flag=1, lights_ramp_up_speed=0, lights_ramp_dn_speed=0, lights_delay=3000;
 volatile int lights_count=0;
 int lights_on=1, lights_ramp_down=2000;
-int lights_red=0, lights_green=0, lights_blue=0, lights_white=0, lighting_brightness=0;
+int lights_red=0, lights_green=0, lights_blue=0, lights_white=0, lights_warm_white=0, lighting_brightness=0;
 
 int overtravel_flag=0;
 volatile int overtravel_timer=0;
@@ -700,13 +701,15 @@ void handle_lighting(void) {
             if (light_brightness <= 0) { light_brightness=0; light_state=LIGHT_OFF; }
             break;
     }
-    uint16_t r=(uint16_t)(((uint32_t)uart_red  *(uint32_t)light_brightness)/255);
-    uint16_t g=(uint16_t)(((uint32_t)uart_green*(uint32_t)light_brightness)/255);
-    uint16_t b=(uint16_t)(((uint32_t)uart_blue *(uint32_t)light_brightness)/255);
-    uint16_t w=(uint16_t)(((uint32_t)uart_white*(uint32_t)light_brightness)/255);
-    PCA9685_SetPWM(2,0,(uint16_t)(r*16));
-    PCA9685_SetPWM(1,0,(uint16_t)(g*16));
-    PCA9685_SetPWM(3,0,(uint16_t)(w*16));
+ uint16_t r =(uint16_t)(((uint32_t)uart_red       *(uint32_t)light_brightness)/255);
+uint16_t g =(uint16_t)(((uint32_t)uart_green      *(uint32_t)light_brightness)/255);
+uint16_t b =(uint16_t)(((uint32_t)uart_blue       *(uint32_t)light_brightness)/255);
+uint16_t w =(uint16_t)(((uint32_t)uart_white      *(uint32_t)light_brightness)/255);
+uint16_t ww=(uint16_t)(((uint32_t)uart_warm_white *(uint32_t)light_brightness)/255);
+PCA9685_SetPWM(2,0,(uint16_t)(r *16));
+PCA9685_SetPWM(1,0,(uint16_t)(g *16));
+PCA9685_SetPWM(3,0,(uint16_t)(w *16));
+PCA9685_SetPWM(4,0,(uint16_t)(ww*16));
 }
 
 void handle_fire_test(void) {
@@ -1044,6 +1047,13 @@ void UART1_ProcessCommand(const char *cmd) {
         int wvalue;
         if (sscanf(cmd,"LW %2x",&wvalue)==1){uart_white=wvalue;UART1_WriteString("white PWM updated\r\n");UART1_WriteUInt(uart_white);Config_MarkDirty();}
         else UART1_WriteString("Invalid white hex value\r\n");
+        
+           } else if (strncmp(cmd, "LC ", 3) == 0) {
+        int cvalue;
+        if (sscanf(cmd,"LC %2x",&cvalue)==1){uart_warm_white=cvalue;UART1_WriteString("warm white PWM updated\r\n");UART1_WriteUInt(uart_warm_white);Config_MarkDirty();}
+        else UART1_WriteString("Invalid warm white hex value\r\n"); 
+        
+        
 
     } else if (strncmp(cmd, "LT ", 3) == 0) {
         int ltvalue;
@@ -1112,6 +1122,7 @@ void UART1_ProcessCommand(const char *cmd) {
         UART1_WriteString("LG "); UART1_WriteHex((uint16_t)uart_green);          UART1_WriteString("\r\n");
         UART1_WriteString("LB "); UART1_WriteHex((uint16_t)uart_blue);           UART1_WriteString("\r\n");
         UART1_WriteString("LW "); UART1_WriteHex((uint16_t)uart_white);          UART1_WriteString("\r\n");
+        UART1_WriteString("LC "); UART1_WriteHex((uint16_t)uart_warm_white);          UART1_WriteString("\r\n");
         UART1_WriteString("DM "); UART1_WriteUInt(uart_door_speed);              UART1_WriteString("\r\n");
         UART1_WriteString("DT "); UART1_WriteUInt(uart_door_autoclose_timer);    UART1_WriteString("\r\n");
         UART1_WriteString("DC "); UART1_WriteUInt(uart_door_autoclose);          UART1_WriteString("\r\n");
@@ -1185,6 +1196,8 @@ int main(void) {
     UART1_WriteString("Ch1\r\n"); PCA9685_SetPWM(1,0,4095); __delay_ms(2000); PCA9685_SetPWM(1,0,0);
     UART1_WriteString("Ch2\r\n"); PCA9685_SetPWM(2,0,4095); __delay_ms(2000); PCA9685_SetPWM(2,0,0);
     UART1_WriteString("Ch3\r\n"); PCA9685_SetPWM(3,0,4095); __delay_ms(2000); PCA9685_SetPWM(3,0,0);
+    UART1_WriteString("Ch4\r\n"); PCA9685_SetPWM(4,0,4095); __delay_ms(2000); PCA9685_SetPWM(4,0,0);
+
     UART1_WriteString("Boot light test done\r\n");
 
     down_call_SetLow();           // A0
