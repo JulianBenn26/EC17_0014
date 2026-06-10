@@ -15,7 +15,7 @@
     Compiler : XC16 v2.10
     MPLAB    : MPLAB X v6.25
 
-    Wessex EC17 0014  rev 066 - with 5 colour lighting  9/6/26
+    Wessex EC17 0014  rev 066 - with 5 colour lighting  10/6/26
 */
 
 #include <stdint.h>
@@ -32,6 +32,8 @@
 #include <math.h>
 #include <stdio.h>
 #include "flash_config.h"
+
+#include "adc_an9.h"
 
 // Function prototypes
 void handle_lighting(void);
@@ -1175,6 +1177,9 @@ int main(void) {
     TMR1_Start();      TMR2_Start();      TMR3_Start();      TMR4_Start();
 
     ADC1_SoftwareTriggerDisable();
+    
+    adc_an9_init();
+    
     TMR3_SetInterruptHandler(flash_speed);
 
     door_disable_SetHigh();
@@ -1249,6 +1254,8 @@ int main(void) {
     while (1) {
 
         ClrWdt();
+        
+        adc_an9_task();
 
         // UART command processing
         if (UART1_IsRxReady()) {
